@@ -1,0 +1,568 @@
+openapi: 3.1.0
+info:
+  title: Tiny URL Service API
+  version: 0.1.0
+  description: |
+    The Tiny URL Service API provides endpoints to manage shortened URLs, resolve
+    them into their destination targets, and inspect basic usage analytics.
+servers:
+  - url: https://api.tiny-url.example.com/v1
+    description: Production deployment
+  - url: http://localhost:8080/v1
+    description: Local development server
+tags:
+  - name: Urls
+    description: Operations for managing shortened URLs.
+  - name: Stats
+    description: Operations that expose usage analytics.
+  - name: Redirect
+    description: Public redirect endpoint for short links.
+security:
+  - bearerAuth: []
+paths:
+  /urls:
+    get:
+      tags:
+        - Urls
+      summary: List shortened URLs
+      operationId: listUrls
+      description: Retrieve a paginated collection of shortened URLs the caller owns.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SearchQuery'
+      responses:
+        '200':
+          description: Paginated list of URLs.
+          headers:
+            X-Total-Count:
+              description: Total number of resources that match the filter.
+              schema:
+                type: integer
+                minimum: 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListUrlsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+        - Urls
+      summary: Create a shortened URL
+      operationId: createUrl
+      description: Shorten a destination URL and optionally set a custom alias or expiration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUrlRequest'
+      responses:
+        '201':
+          description: Short URL created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlResource'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/AliasConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /urls/{alias}:
+    parameters:
+      - $ref: '#/components/parameters/AliasParam'
+    get:
+      tags:
+        - Urls
+      summary: Retrieve URL details
+      operationId: getUrl
+      responses:
+        '200':
+          description: Metadata of the shortened URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlResource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Urls
+      summary: Update URL metadata
+      operationId: updateUrl
+      description: Modify the destination URL, lifecycle state, or expiration details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUrlRequest'
+      responses:
+        '200':
+          description: Updated URL metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlResource'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AliasConflict'
+        '422':
+          $ref: '#/components/responses/InvalidState'
+    delete:
+      tags:
+        - Urls
+      summary: Deactivate a shortened URL
+      operationId: deleteUrl
+      description: Soft-delete a short URL so future redirects are blocked while retaining history.
+      responses:
+        '204':
+          description: URL deactivated.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyInactive'
+  /urls/{alias}/stats:
+    parameters:
+      - $ref: '#/components/parameters/AliasParam'
+      - $ref: '#/components/parameters/RangeStart'
+      - $ref: '#/components/parameters/RangeEnd'
+    get:
+      tags:
+        - Stats
+      summary: Fetch redirect analytics
+      operationId: getUrlStats
+      responses:
+        '200':
+          description: Aggregated and time-bucketed usage metrics for the alias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /{alias}:
+    get:
+      tags:
+        - Redirect
+      summary: Resolve a shortened URL
+      operationId: resolveAlias
+      description: Resolve the provided alias and redirect the caller to its destination.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AliasParam'
+      responses:
+        '302':
+          description: Redirect to the long URL.
+          headers:
+            Location:
+              description: Destination URL associated with the alias.
+              schema:
+                type: string
+                format: uri
+        '404':
+          $ref: '#/components/responses/NotFoundPublic'
+        '410':
+          $ref: '#/components/responses/Gone'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supply a bearer token obtained from the authentication service.
+  parameters:
+    AliasParam:
+      name: alias
+      in: path
+      required: true
+      description: Short code that identifies the shortened URL.
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9_-]{4,64}$'
+    PageParam:
+      name: page
+      in: query
+      description: 1-based page index.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      description: Number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    SearchQuery:
+      name: q
+      in: query
+      description: Optional case-insensitive search against alias or destination URL.
+      schema:
+        type: string
+        maxLength: 128
+    RangeStart:
+      name: rangeStart
+      in: query
+      description: Include metrics occurring on or after this UTC timestamp.
+      schema:
+        type: string
+        format: date-time
+    RangeEnd:
+      name: rangeEnd
+      in: query
+      description: Include metrics occurring before this UTC timestamp.
+      schema:
+        type: string
+        format: date-time
+  responses:
+    BadRequest:
+      description: The request payload or query parameters were invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: BAD_REQUEST
+            message: Payload failed validation.
+            details:
+              - field: longUrl
+                issue: Must be a valid URI.
+    NotFound:
+      description: The requested resource could not be found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: No URL with alias abc123 exists.
+    NotFoundPublic:
+      description: The alias does not exist or is no longer available.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: NOT_FOUND
+            message: This short link is unknown.
+    AliasConflict:
+      description: The requested custom alias is already in use.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: ALIAS_CONFLICT
+            message: Alias requested is not available.
+    AlreadyInactive:
+      description: The URL was already inactive.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: ALREADY_INACTIVE
+            message: The short URL has already been deactivated.
+    InvalidState:
+      description: The update would place the resource in an invalid state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: INVALID_STATE
+            message: Cannot reactivate an expired short URL.
+    Unauthorized:
+      description: Authentication is required to access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid bearer token.
+    Forbidden:
+      description: The caller does not have permission to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: FORBIDDEN
+            message: Caller is not allowed to access this alias.
+    Gone:
+      description: The alias existed but has been permanently removed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: GONE
+            message: This short link has been permanently removed.
+    TooManyRequests:
+      description: Too many requests were sent in a given amount of time.
+      headers:
+        Retry-After:
+          description: Seconds until the client may retry.
+          schema:
+            type: integer
+            minimum: 0
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: TOO_MANY_REQUESTS
+            message: Rate limit exceeded. Try again later.
+  schemas:
+    CreateUrlRequest:
+      type: object
+      required:
+        - longUrl
+      properties:
+        longUrl:
+          type: string
+          format: uri
+          description: Destination URL to shorten.
+        customAlias:
+          type: string
+          pattern: '^[a-zA-Z0-9_-]{4,64}$'
+          description: Preferred alias to use instead of an auto-generated one.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Optional UTC expiration timestamp after which the link will be disabled.
+        tags:
+          type: array
+          description: Optional tags that help categorize the short link.
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 32
+      additionalProperties: false
+    UpdateUrlRequest:
+      type: object
+      description: Patch-style request where at least one property must be supplied.
+      properties:
+        longUrl:
+          type: string
+          format: uri
+          description: Updated destination URL.
+        expiresAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: New expiration timestamp or null to remove the expiration.
+        active:
+          type: boolean
+          description: Toggle whether the link can be resolved.
+        tags:
+          type: array
+          description: Full replacement of the tag collection.
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 32
+      additionalProperties: false
+      minProperties: 1
+    UrlResource:
+      type: object
+      required:
+        - id
+        - alias
+        - shortUrl
+        - longUrl
+        - createdAt
+        - active
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the shortened URL.
+        alias:
+          type: string
+          description: Short code assigned to the URL.
+        shortUrl:
+          type: string
+          format: uri
+          description: Fully qualified shortened URL clients can follow.
+        longUrl:
+          type: string
+          format: uri
+          description: Destination URL for the alias.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the short URL was created (UTC).
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the short URL metadata was last modified (UTC).
+        expiresAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the link should expire, if set.
+        lastAccessedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the alias was last resolved.
+        active:
+          type: boolean
+          description: Indicates whether the alias currently resolves.
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags associated with the link.
+    ListUrlsResponse:
+      type: object
+      required:
+        - data
+        - page
+        - pageSize
+        - totalItems
+        - totalPages
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UrlResource'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        nextPage:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Next page index when more results are available.
+      additionalProperties: false
+    UrlStats:
+      type: object
+      required:
+        - alias
+        - totalRedirects
+        - uniqueVisitors
+        - timeSeries
+      properties:
+        alias:
+          type: string
+          description: Alias the metrics apply to.
+        totalRedirects:
+          type: integer
+          minimum: 0
+          description: All-time redirect count.
+        uniqueVisitors:
+          type: integer
+          minimum: 0
+          description: Count of distinct visitors in the requested range.
+        lastRedirectAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: Timestamp of the most recent redirect, if any.
+        timeSeries:
+          type: array
+          description: Daily redirect metrics for the requested time window.
+          items:
+            $ref: '#/components/schemas/DailyRedirectMetrics'
+      additionalProperties: false
+    DailyRedirectMetrics:
+      type: object
+      required:
+        - date
+        - redirectCount
+        - uniqueVisitors
+      properties:
+        date:
+          type: string
+          format: date
+          description: UTC date for the metrics bucket.
+        redirectCount:
+          type: integer
+          minimum: 0
+          description: Number of redirects served on that date.
+        uniqueVisitors:
+          type: integer
+          minimum: 0
+          description: Distinct visitors recorded on that date.
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+        message:
+          type: string
+          description: Short, human-readable description of the error.
+        details:
+          type: array
+          description: Optional list of field-specific validation issues.
+          items:
+            type: object
+            required:
+              - field
+              - issue
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+            additionalProperties: false
+      additionalProperties: false
