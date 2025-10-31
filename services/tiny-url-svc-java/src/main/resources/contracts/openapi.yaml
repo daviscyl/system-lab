@@ -6,10 +6,10 @@ info:
     The Tiny URL Service API provides endpoints to manage shortened URLs, resolve
     them into their destination targets, and inspect basic usage analytics.
 servers:
-  - url: https://api.tiny-url.example.com/v1
-    description: Production deployment
-  - url: http://localhost:8080/v1
+  - url: http://localhost:8080
     description: Local development server
+  - url: https://api.tiny-url.example.com
+    description: Production deployment
 tags:
   - name: Urls
     description: Operations for managing shortened URLs.
@@ -215,11 +215,11 @@ components:
     PageParam:
       name: page
       in: query
-      description: 1-based page index.
+      description: 0-based page index.
       schema:
         type: integer
-        minimum: 1
-        default: 1
+        minimum: 0
+        default: 0
     PageSizeParam:
       name: pageSize
       in: query
@@ -251,6 +251,7 @@ components:
         type: string
         format: date-time
   responses:
+    # Common error responses
     BadRequest:
       description: The request payload or query parameters were invalid.
       content:
@@ -263,6 +264,24 @@ components:
             details:
               - field: longUrl
                 issue: Must be a valid URI.
+    Unauthorized:
+      description: Authentication is required to access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid bearer token.
+    Forbidden:
+      description: The caller does not have permission to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: FORBIDDEN
+            message: Caller is not allowed to access this alias.
     NotFound:
       description: The requested resource could not be found.
       content:
@@ -272,6 +291,23 @@ components:
           example:
             code: NOT_FOUND
             message: No URL with alias abc123 exists.
+    TooManyRequests:
+      description: Too many requests were sent in a given amount of time.
+      headers:
+        Retry-After:
+          description: Seconds until the client may retry.
+          schema:
+            type: integer
+            minimum: 0
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: TOO_MANY_REQUESTS
+            message: Rate limit exceeded. Try again later.
+
+    # Endpoint-specific error responses
     NotFoundPublic:
       description: The alias does not exist or is no longer available.
       content:
@@ -308,24 +344,6 @@ components:
           example:
             code: INVALID_STATE
             message: Cannot reactivate an expired short URL.
-    Unauthorized:
-      description: Authentication is required to access this resource.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            code: UNAUTHORIZED
-            message: Missing or invalid bearer token.
-    Forbidden:
-      description: The caller does not have permission to perform this action.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            code: FORBIDDEN
-            message: Caller is not allowed to access this alias.
     Gone:
       description: The alias existed but has been permanently removed.
       content:
@@ -335,21 +353,7 @@ components:
           example:
             code: GONE
             message: This short link has been permanently removed.
-    TooManyRequests:
-      description: Too many requests were sent in a given amount of time.
-      headers:
-        Retry-After:
-          description: Seconds until the client may retry.
-          schema:
-            type: integer
-            minimum: 0
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            code: TOO_MANY_REQUESTS
-            message: Rate limit exceeded. Try again later.
+
   schemas:
     CreateUrlRequest:
       type: object
