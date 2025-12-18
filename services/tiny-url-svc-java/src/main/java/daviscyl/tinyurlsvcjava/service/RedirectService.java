@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.Optional;
 
 @Service
@@ -52,13 +51,13 @@ public class RedirectService {
             // Update daily stats
             LocalDate today = LocalDate.now();
             UrlStatsEntity stats = urlStatsRepository
-                .findByUrlIdAndStatDate(url.getId(), today)
-                .orElse(UrlStatsEntity.builder()
-                    .urlId(url.getId())
-                    .statDate(today)
-                    .redirectCount(0L)
-                    .uniqueVisitors(0L)
-                    .build());
+                    .findByUrlIdAndStatDate(url.getId(), today)
+                    .orElse(UrlStatsEntity.builder()
+                                    .urlId(url.getId())
+                                    .statDate(today)
+                                    .redirectCount(0L)
+                                    .uniqueVisitors(0L)
+                                    .build());
 
             stats.incrementRedirectCount();
             urlStatsRepository.save(stats);

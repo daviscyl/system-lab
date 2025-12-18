@@ -31,6 +31,6 @@ public class AliasApiController implements AliasApi {
                 // Return 302 redirect
                 return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(destinationUrl)).<Void>build();
             })
-            .orElseGet(() -> ResponseEntity.<Void>status(HttpStatus.NOT_FOUND).build());
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 }

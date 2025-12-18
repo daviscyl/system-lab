@@ -1,6 +1,5 @@
 package daviscyl.tinyurlsvcjava.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.openapitools.jackson.nullable.JsonNullableModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +11,6 @@ public class JacksonConfig {
     @Bean
     public Jackson2ObjectMapperBuilder jackson2ObjectMapperBuilder() {
         return new Jackson2ObjectMapperBuilder()
-            .modulesToInstall(new JsonNullableModule());
+                .modulesToInstall(new JsonNullableModule());
     }
 }

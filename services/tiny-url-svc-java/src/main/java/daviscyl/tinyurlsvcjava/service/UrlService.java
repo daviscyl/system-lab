@@ -56,14 +56,6 @@ public class UrlService {
         return urlRepository.findByUserId(userId, pageable);
     }
 
-    @Transactional(readOnly = true)
-    public long countUrls(String userId, String search) {
-        if (search != null && !search.isBlank()) {
-            return urlRepository.countByUserIdWithSearch(userId, search);
-        }
-        return urlRepository.findByUserId(userId, Pageable.unpaged()).getTotalElements();
-    }
-
     @Transactional
     public UrlEntity updateUrl(String alias, String userId, String newDestinationUrl, OffsetDateTime newExpiresAt) {
         UrlEntity url = urlRepository.findByAlias(alias)
