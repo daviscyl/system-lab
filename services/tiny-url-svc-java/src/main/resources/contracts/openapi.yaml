@@ -1,4 +1,4 @@
-openapi: 3.2.0
+openapi: 3.0.3
 info:
   title: Tiny URL Service API
   version: 0.1.0
@@ -40,9 +40,7 @@ paths:
               schema:
                 type: integer
                 minimum: 0
-              examples:
-                default:
-                  value: 42
+              example: 42
           content:
             application/json:
               schema:
@@ -261,47 +259,39 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            validationError:
-              value:
-                code: BAD_REQUEST
-                message: Payload failed validation.
-                details:
-                  - field: longUrl
-                    issue: Must be a valid URI.
+          example:
+            code: BAD_REQUEST
+            message: Payload failed validation.
+            details:
+              - field: longUrl
+                issue: Must be a valid URI.
     Unauthorized:
       description: Authentication is required to access this resource.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            missingToken:
-              value:
-                code: UNAUTHORIZED
-                message: Missing or invalid bearer token.
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid bearer token.
     Forbidden:
       description: The caller does not have permission to perform this action.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            accessDenied:
-              value:
-                code: FORBIDDEN
-                message: Caller is not allowed to access this alias.
+          example:
+            code: FORBIDDEN
+            message: Caller is not allowed to access this alias.
     NotFound:
       description: The requested resource could not be found.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            aliasNotFound:
-              value:
-                code: NOT_FOUND
-                message: No URL with alias abc123 exists.
+          example:
+            code: NOT_FOUND
+            message: No URL with alias abc123 exists.
     TooManyRequests:
       description: Too many requests were sent in a given amount of time.
       headers:
@@ -310,18 +300,14 @@ components:
           schema:
             type: integer
             minimum: 0
-          examples:
-            default:
-              value: 60
+          example: 60
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            rateLimitExceeded:
-              value:
-                code: TOO_MANY_REQUESTS
-                message: Rate limit exceeded. Try again later.
+          example:
+            code: TOO_MANY_REQUESTS
+            message: Rate limit exceeded. Try again later.
 
     # Endpoint-specific error responses
     NotFoundPublic:
@@ -330,55 +316,45 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            unknownLink:
-              value:
-                code: NOT_FOUND
-                message: This short link is unknown.
+          example:
+            code: NOT_FOUND
+            message: This short link is unknown.
     AliasConflict:
       description: The requested custom alias is already in use.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            aliasInUse:
-              value:
-                code: ALIAS_CONFLICT
-                message: Alias requested is not available.
+          example:
+            code: ALIAS_CONFLICT
+            message: Alias requested is not available.
     AlreadyInactive:
       description: The URL was already inactive.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            alreadyDeactivated:
-              value:
-                code: ALREADY_INACTIVE
-                message: The short URL has already been deactivated.
+          example:
+            code: ALREADY_INACTIVE
+            message: The short URL has already been deactivated.
     InvalidState:
       description: The update would place the resource in an invalid state.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            cannotReactivate:
-              value:
-                code: INVALID_STATE
-                message: Cannot reactivate an expired short URL.
+          example:
+            code: INVALID_STATE
+            message: Cannot reactivate an expired short URL.
     Gone:
       description: The alias existed but has been permanently removed.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            linkRemoved:
-              value:
-                code: GONE
-                message: This short link has been permanently removed.
+          example:
+            code: GONE
+            message: This short link has been permanently removed.
 
   schemas:
     CreateUrlRequest:
@@ -408,10 +384,9 @@ components:
           format: uri
           description: Updated destination URL.
         expiresAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
+          type: string
+          format: date-time
+          nullable: true
           description: New expiration timestamp or null to remove the expiration.
         active:
           type: boolean
@@ -452,16 +427,14 @@ components:
           format: date-time
           description: When the short URL metadata was last modified (UTC).
         expiresAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
+          type: string
+          format: date-time
+          nullable: true
           description: When the link should expire, if set.
         lastAccessedAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
+          type: string
+          format: date-time
+          nullable: true
           description: When the alias was last resolved.
         active:
           type: boolean
@@ -492,9 +465,8 @@ components:
           type: integer
           minimum: 0
         nextPage:
-          anyOf:
-            - type: integer
-            - type: 'null'
+          type: integer
+          nullable: true
           description: Next page index when more results are available.
       additionalProperties: false
     UrlStats:
@@ -517,10 +489,9 @@ components:
           minimum: 0
           description: Count of distinct visitors in the requested range.
         lastRedirectAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
+          type: string
+          format: date-time
+          nullable: true
           description: Timestamp of the most recent redirect, if any.
         timeSeries:
           type: array
